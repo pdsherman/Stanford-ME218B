@@ -1,9 +1,9 @@
 /****************************************************************************
  
-  Header file for Step service 
+  Header file for DC Motor Service
   based on the Gen 2 Events and Services Framework
 
- ****************************************************************************/
+*****************************************************************************/
 
 #ifndef DCMotor_H
 #define DCMotor_H

@@ -6,9 +6,12 @@
    1.0.1
 
  Description
-   This is a file for implementing a flat state machine for the
-   IR Detecting under the Gen2 Events and Services Framework.
-
+   Source code for IR Light detection state machine. Target Bot and Target
+   Goal each have IR LED that flashes at known frequency. An IR sensing
+   circit was built to input an analog voltage for different frequencies
+   to detect targets. A high power servo is used to rotate the section of
+   the robot.
+  
  Notes
 
  History
@@ -21,9 +24,6 @@
  10/23/11 18:20 jec      began conversion from SMTemplate.c (02/20/07 rev)
 ****************************************************************************/
 /*----------------------------- Include Files -----------------------------*/
-/* include header files for this state machine as well as any machines at the
-   next lower level in the hierarchy that are sub-machines to this machine
-*/
 #include "ES_Configure.h"
 #include "ES_Framework.h"
 #include "ES_DeferRecall.h"
@@ -44,6 +44,7 @@
 #include "ads12.h"
 
 /*----------------------------- Module Defines ----------------------------*/
+//Hardware Pin/Port on micro-controllers for IR Sensors
 #define IR_ADDRESS DDRT
 #define IR_PORT PTT
 #define IR_SESNOR_1 BIT0HI
@@ -73,17 +74,10 @@
 #define GOAL_THRESH_HI 515 
 
 /*---------------------------- Module Functions ---------------------------*/
-/* prototypes for private functions for this machine.They should be functions
-   relevant to the behavior of this state machine
-*/
 static void UpdateServoWidth(IR_State_t CurrentState);
 
 /*---------------------------- Module Variables ---------------------------*/
-// everybody needs a state variable, you may need others as well.
-// type of state variable should match htat of enum in header file
 static IR_State_t CurrentState;
-
-// with the introduction of Gen2, we need a module level Priority var as well
 static uint8_t MyPriority;
 
 static unsigned int TargetFreq;
@@ -111,22 +105,17 @@ static int DeltaWidth;
 ****************************************************************************/
 bool InitIR_Detect( uint8_t Priority )
 {
+   MyPriority = Priority;
+   CurrentServoWidth = SERVO_WIDTH_INIT;
+   DeltaWidth = SERVO_DELTA;
 
-  MyPriority = Priority;
-  //Put into the Initial State
-
-  CurrentServoWidth = SERVO_WIDTH_INIT;
-  DeltaWidth = SERVO_DELTA;
-
-  SetServo(SERVO, CurrentServoWidth);
-
-  //Set up for IR Detection
-  CurrentState = DeActivated;
-  ES_Timer_InitTimer(IR_Detect_Timer, SERVO_TIME);
-  TargetFreq = BOT_FREQ;
-  ADS12_Init("AAAAAAAA");
+   SetServo(SERVO, CurrentServoWidth);
+   CurrentState = DeActivated; //Initial State
+   ES_Timer_InitTimer(IR_Detect_Timer, SERVO_TIME);//Start timer
+   TargetFreq = BOT_FREQ; //Target Frequency
+   ADS12_Init("AAAAAAAA");//Setup analog inputs
   
-  return true;
+   return true;
 }
 
 /****************************************************************************
@@ -148,7 +137,7 @@ bool InitIR_Detect( uint8_t Priority )
 ****************************************************************************/
 bool PostIR_Detect( ES_Event ThisEvent )
 {
-  return ES_PostToService( MyPriority, ThisEvent);
+   return ES_PostToService( MyPriority, ThisEvent);
 }
 
 /****************************************************************************
@@ -162,9 +151,13 @@ bool PostIR_Detect( ES_Event ThisEvent )
    ES_Event, ES_NO_EVENT if no error ES_ERROR otherwise
 
  Description
-   add your description here
+   To detect targets, two IR sensors are used side by side. Goal is to use
+   servo to rotate until both sensor can sense the target. If only right 
+   sensor sees target, it rotates to the left. 
+
  Notes
    uses nested switch/case to implement the machine.
+
  Author
    J. Edward Carryer, 01/15/12, 15:23
 ****************************************************************************/
@@ -176,94 +169,93 @@ ES_Event RunIR_Detect( ES_Event ThisEvent )
    
 
 
-	if(CurrentState != DeActivated){
+   if(CurrentState != DeActivated)
+   {
+      switch (ThisEvent.EventType)
+      {    
+         case (StopAligning): //Deactive Align Mode
+            CurrentState = DeActivated;
+            TargetFreq = 0;
+            if(ThisEvent.EventParam == 1)
+            {
+               CurrentServoWidth = SERVO_WIDTH_MIN; 
+            }
+            else
+            {
+               CurrentServoWidth = SERVO_WIDTH_INIT;  
+            }
+            SetServo(SERVO, CurrentServoWidth);
+            break;
 
-		switch (ThisEvent.EventType){    
-			
-			case (StopAligning): //Deactive Align Mode
-			   //puts("Stop Aligning\r\n");
-	  			CurrentState = DeActivated;
-	  			TargetFreq = 0;
-	  			if(ThisEvent.EventParam == 1)
-	  			{
-	  			  CurrentServoWidth = SERVO_WIDTH_MIN; 
-	  			}
-	  			else
-	  			{
-	  			  CurrentServoWidth = SERVO_WIDTH_INIT;  
-	  			}
-				SetServo(SERVO, CurrentServoWidth);
+         case (ES_TIMEOUT): 	//Timeout - Keep turning 
+            if(ThisEvent.EventParam == IR_Detect_Timer)
+            {
+               UpdateServoWidth(CurrentState);
+               SetServo(SERVO, CurrentServoWidth);
+               ES_Timer_InitTimer(IR_Detect_Timer, SERVO_TIME);  
+            }
+            if(ThisEvent.EventParam == ShootBotTimer)
+            {
+               rightMotor(75);
+               leftMotor(-74);
+            }
 				break;
 
-   		case (ES_TIMEOUT): 	//Timeout - Keep turning 
-	   		if(ThisEvent.EventParam == IR_Detect_Timer)
-	   		{
-	   		   UpdateServoWidth(CurrentState);
-				   SetServo(SERVO, CurrentServoWidth);
-				   ES_Timer_InitTimer(IR_Detect_Timer, SERVO_TIME);  
-	   		}
-	   		if(ThisEvent.EventParam == ShootBotTimer)
-	   		{
-			     rightMotor(75);
-              leftMotor(-74);
-	   		}
-	   		
-				break;
+         case (LeftOnly):	//Left Sensor sees beacon
+            ES_Timer_StartTimer(IR_Detect_Timer);
+            CurrentState = LeftAligned;
+            break;
 
-			case (LeftOnly):	//Left Sensor sees beacon
-			  	//puts("Left Only\r\n");
-			   ES_Timer_StartTimer(IR_Detect_Timer);
-				CurrentState = LeftAligned;
-				break;
+         case (RightOnly): //Right Sensor Sees beacon                     
+            ES_Timer_StartTimer(IR_Detect_Timer);
+            CurrentState = RightAligned;                  
+            break;
 
-			case (RightOnly): //Right Sensor Sees beacon                     
-			   //puts("Right Only\r\n");
-			   ES_Timer_StartTimer(IR_Detect_Timer);
-				CurrentState = RightAligned;                  
-				break;
-
-			case (SenseBoth): //Both Sensors See beacon
-				CurrentState = Aligned;
-				ES_Timer_StopTimer(IR_Detect_Timer);
-				//puts("Sense Both\r\n");
+         case (SenseBoth): //Both Sensors See beacon
+            CurrentState = Aligned;
+            ES_Timer_StopTimer(IR_Detect_Timer);
 				//Aligned: Shoot or Deploy Lance
-			   if(TargetFreq == BOT_FREQ){
+            if(TargetFreq == BOT_FREQ)
+            {
                NewEvent.EventType = Deploy_Lance;
-					PostLance(NewEvent);
-					if(GetCurrentRound() == 3 && shootflag == false){
+               PostLance(NewEvent);
+
+               if(GetCurrentRound() == 3 && shootflag == false)
+               {
 					   translateMotor(0);
 					   shootflag = true;
-			         NewEvent.EventType = Shoot_Ball;
-			         NewEvent.EventParam = 5;
-		            PostShoot(NewEvent);
-		            ES_Timer_InitTimer(ShootBotTimer, 3000);				
-					}
+                  NewEvent.EventType = Shoot_Ball;
+                  NewEvent.EventParam = 5;
+                  PostShoot(NewEvent);
+                  ES_Timer_InitTimer(ShootBotTimer, 3000);				
+               }
 				}	
 				break;
 
-			case (SenseNone): //Neither Sensor sees beacon
-			   //	puts("Sense None\r\n");
-				CurrentState = Active;
-				ES_Timer_StartTimer(IR_Detect_Timer);
-				break;
+         case (SenseNone): //Neither Sensor sees beacon
+            CurrentState = Active;
+            ES_Timer_StartTimer(IR_Detect_Timer);
+            break;
 				
-		   case (StartAlign): //Start Align reposted
-		      //	puts("Start Align\r\n");
-		      TargetFreq = ThisEvent.EventParam;
-				CurrentState = Active;
-				ES_Timer_InitTimer(IR_Detect_Timer, SERVO_TIME);
-				break;
+         case (StartAlign): //Start Align reposted
+            TargetFreq = ThisEvent.EventParam;
+            CurrentState = Active;
+            ES_Timer_InitTimer(IR_Detect_Timer, SERVO_TIME);
+            break;
 				   
-   		} /* End Switch(EventType) */
+      } /* End Switch(EventType) */
 
-	} else { //Current State is Deactivated
-		if(ThisEvent.EventType == StartAlign){
-		      //puts("Start Align\r\n");
-				TargetFreq = ThisEvent.EventParam;
-				CurrentState = Active;
-				ES_Timer_InitTimer(IR_Detect_Timer, SERVO_TIME);
-		}
-	}
+   } 
+   else //Current State is Deactivated
+   { 
+      if(ThisEvent.EventType == StartAlign)
+      {
+         TargetFreq = ThisEvent.EventParam;
+         CurrentState = Active;
+         ES_Timer_InitTimer(IR_Detect_Timer, SERVO_TIME);
+      }
+   }
+   
    return ReturnEvent;
 }
 
@@ -301,88 +293,99 @@ IR_State_t QueryIR_Detect ( void )
  Author
      Patrick Sherman, 02/19/2014, 12:43
 ****************************************************************************/
-bool CheckIRSensor(void){
-	bool ReturnVal = false;
-	ES_Event NewEvent;
+bool CheckIRSensor(void)
+{
+   bool ReturnVal = false;
+   ES_Event NewEvent;
 
-	static short LastLeftState = NONE;
-	static short LastRightState = NONE;
-	static short LastCombinedState = NONE;
+   static short LastLeftState = NONE;
+   static short LastRightState = NONE;
+   static short LastCombinedState = NONE;
 	
-	unsigned int leftFreq, rightFreq;
-	short leftState, rightState, CombinedState;	
-	short leftPin = ADS12_ReadADPin(0);
-	short rightPin = ADS12_ReadADPin(1);
-	
-	//printf("Left Pin: %d\n\r", leftPin);
-//	printf("Right Pin: %d\n\r", rightPin);
-
+   unsigned int leftFreq, rightFreq;
+   short leftState, rightState, CombinedState;	
+   short leftPin = ADS12_ReadADPin(0);
+   short rightPin = ADS12_ReadADPin(1);
 	
 	//What does Left IR Sensor See
-	if(leftPin >= BOT_THRESH_LO && leftPin <= BOT_THRESH_HI){
-		leftState = BOT;
-		leftFreq = BOT_FREQ;	
-	} else if(leftPin >= GOAL_THRESH_LO && leftPin <= GOAL_THRESH_HI){
-		leftState = GOAL;
-	   leftFreq = GOAL_FREQ;	
-	} else {
+   if(leftPin >= BOT_THRESH_LO && leftPin <= BOT_THRESH_HI)
+   {
+      leftState = BOT;
+      leftFreq = BOT_FREQ;	
+	} 
+   else if(leftPin >= GOAL_THRESH_LO && leftPin <= GOAL_THRESH_HI)
+   {
+      leftState = GOAL;
+      leftFreq = GOAL_FREQ;	
+	}
+   else 
+   {
 		leftState = NONE;
 		leftFreq = 0;
 	}
 	
 	//What Does Right IR Sensor See
-	if(rightPin >= BOT_THRESH_LO && rightPin <= BOT_THRESH_HI){
-		rightState = BOT;
-		rightFreq = BOT_FREQ;
-	} else if(rightPin >= GOAL_THRESH_LO && rightPin <= GOAL_THRESH_HI){
-		rightState = GOAL;
-	   rightFreq = GOAL_FREQ;
-	} else {
-		rightState = NONE;
-		rightFreq = 0;	
-	}
+   if(rightPin >= BOT_THRESH_LO && rightPin <= BOT_THRESH_HI)
+   {
+      rightState = BOT;
+      rightFreq = BOT_FREQ;
+	} 
+   else if(rightPin >= GOAL_THRESH_LO && rightPin <= GOAL_THRESH_HI)
+   {
+      rightState = GOAL;
+      rightFreq = GOAL_FREQ;
+	} 
+   else
+   {
+      rightState = NONE;
+      rightFreq = 0;	
+   }
 
-	if(rightState == leftState && rightFreq == TargetFreq){
+   //Look at state at both sensor to see if one/both/none see target
+   if(rightState == leftState && rightFreq == TargetFreq)
 		CombinedState = BOTH;
-	} else if (leftState != NONE && leftFreq == TargetFreq){
+   else if (leftState != NONE && leftFreq == TargetFreq)
 	   CombinedState = LEFT;
-	} else if (rightState != NONE && rightFreq == TargetFreq) {
+   else if (rightState != NONE && rightFreq == TargetFreq)
       CombinedState = RIGHT;
-	} else {
+   else
 	   CombinedState = NONE;  
-	}
-	
-	if(CombinedState != LastCombinedState){
-	   switch(CombinedState){
-	      case (BOTH):
-	         NewEvent.EventType = SenseBoth;
-		   	NewEvent.EventParam = leftFreq;
-	         break;
+
+   //Use combined state to choose next event	
+   if(CombinedState != LastCombinedState)
+   {
+      switch(CombinedState)
+      {
+         case (BOTH):
+            NewEvent.EventType = SenseBoth;
+            NewEvent.EventParam = leftFreq;
+            break;
 	       
-	      case(LEFT):
-	         NewEvent.EventType = LeftOnly;
-			   NewEvent.EventParam = leftFreq;
-	         break;
+         case(LEFT):
+            NewEvent.EventType = LeftOnly;
+            NewEvent.EventParam = leftFreq;
+            break;
 	         
-	      case(RIGHT):
-	         NewEvent.EventType = RightOnly;
-		   	NewEvent.EventParam = rightFreq;
-	         break;
+         case(RIGHT):
+            NewEvent.EventType = RightOnly;
+            NewEvent.EventParam = rightFreq;
+            break;
 	         
-	      case(NONE):
-	         NewEvent.EventType = SenseNone;
-		   	NewEvent.EventParam = 0;
-	         break;
-	   }
-	   PostIR_Detect(NewEvent);
-	   ReturnVal = true;
+         case(NONE):
+            NewEvent.EventType = SenseNone;
+            NewEvent.EventParam = 0;
+            break;
+      }
+      
+      PostIR_Detect(NewEvent);
+      ReturnVal = true;
 	}
 
-	LastRightState = rightState;
-	LastLeftState = leftState;
-	LastCombinedState = CombinedState;
+   LastRightState = rightState;
+   LastLeftState = leftState;
+   LastCombinedState = CombinedState;
 
-	return ReturnVal;
+   return ReturnVal;
 } /* End CheckIRSensor */
 
 /***************************************************************************
@@ -400,27 +403,28 @@ bool CheckIRSensor(void){
  Author
      Patrick Sherman, 02/19/2014, 18:43
 ****************************************************************************/
-
-static void UpdateServoWidth(IR_State_t CurrentState){
-
-	//If only one beacon is detecting target
-	if(LeftAligned == CurrentState){
-		DeltaWidth = -SERVO_DELTA;
-	} else if (RightAligned == CurrentState){
-		DeltaWidth = SERVO_DELTA;
-	} 
-
-   //Update Servo Width
-	CurrentServoWidth += DeltaWidth;
+static void UpdateServoWidth(IR_State_t CurrentState)
+{
+   //If only one beacon is detecting target
+   if(LeftAligned == CurrentState)
+      DeltaWidth = -SERVO_DELTA;
+	else if (RightAligned == CurrentState)
+      DeltaWidth = SERVO_DELTA;
 	
-	//If width reaches limit of servo.
-	if(CurrentServoWidth >= SERVO_WIDTH_MAX){
+   //Update Servo Width
+   CurrentServoWidth += DeltaWidth;
+	
+   //If width reaches limit of servo.
+   if(CurrentServoWidth >= SERVO_WIDTH_MAX)
+   {
 		DeltaWidth = -SERVO_DELTA;
-		CurrentServoWidth = SERVO_WIDTH_MAX;
-	} else if (CurrentServoWidth <= SERVO_WIDTH_MIN){
+      CurrentServoWidth = SERVO_WIDTH_MAX;
+   } 
+   else if (CurrentServoWidth <= SERVO_WIDTH_MIN)
+   {
       DeltaWidth = SERVO_DELTA; 
-		CurrentServoWidth = SERVO_WIDTH_MIN;
-	}
+      CurrentServoWidth = SERVO_WIDTH_MIN;
+   }
 
 } /* End UpdateServoWidth */
 

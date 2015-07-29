@@ -6,22 +6,24 @@
    1.0.1
 
  Description
-   This is the first service for the Test Harness under the 
-   Gen2 Events and Services Framework.
+   This is the source code for the service in charge of reloading the foam
+   balls into the robot from the reloading station provided by the course
+   instructors. The re-supply depot will deliver a single ball each time its
+   IR detector receieves a series of 10 pulses with 10ms ON time and 30ms
+   OFF time.
 
  Notes
 
  History
  When           Who     What/Why
  -------------- ---     --------
+ 02/20/15 13:30 pds05    edited file for use in project
  10/21/13 19:38 jec      created to test 16 possible serves, we need a bunch
                          of service test harnesses
  08/05/13 20:33 jec      converted to test harness service
  01/16/12 09:58 jec      began conversion from TemplateFSM.c
 ****************************************************************************/
 /*----------------------------- Include Files -----------------------------*/
-/* include header files for the framework and this service
-*/
 #include "ES_Configure.h"
 #include "ES_Framework.h"
 #include "IRemitter.h"
@@ -45,23 +47,18 @@
 #define Period40ms (40 _ms_)
 #define Period10ms (10 _ms_)
 
+//Hardware on micro-controller Pins/Ports for IR LED emmitter
 #define IRemitter_ADDRESS DDRT
 #define IRemitter_PORT PTT
 #define IRemitter_PIN  BIT7HI
-
 #define ReloadLED_ADDRESS DDRP
 #define ReloadLED_PORT PTP
 #define ReloadLED_PIN BIT5HI
 /*---------------------------- Module Functions ---------------------------*/
-/* prototypes for private functions for this service.They should be functions
-   relevant to the behavior of this service
-*/
-//void InitPWM(void);
 static void InitTimer(void);
 void interrupt _Vec_tim0ch6 Timer40ms (void);
 void interrupt _Vec_tim0ch7 Timer10ms (void);
 /*---------------------------- Module Variables ---------------------------*/
-// with the introduction of Gen2, we need a module level Priority variable
 static uint8_t MyPriority;
 static unsigned int count = 0;
 static unsigned int ballCount = 0;
@@ -69,7 +66,7 @@ static unsigned int ballCount = 0;
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
-     InitTestHarnessService10
+     InitIRemitter
 
  Parameters
      uint8_t : the priorty of this service
@@ -87,26 +84,22 @@ static unsigned int ballCount = 0;
 ****************************************************************************/
 bool InitIRemitter ( uint8_t Priority )
 {
-  ES_Event ThisEvent;
+   ES_Event ThisEvent;
 
-  MyPriority = Priority;
-  /********************************************
-   in here you write your initialization code
-   *******************************************/
-  IRemitter_ADDRESS |= IRemitter_PIN;
-  IRemitter_PORT &= ~IRemitter_PIN;
-  ReloadLED_ADDRESS |= ReloadLED_PIN;
-  ReloadLED_PORT &= ~ReloadLED_PIN;
+   MyPriority = Priority;
+   
+   //Init pins as digital outputs and OFF
+   IRemitter_ADDRESS |= IRemitter_PIN;
+   IRemitter_PORT &= ~IRemitter_PIN;
+   ReloadLED_ADDRESS |= ReloadLED_PIN;
+   ReloadLED_PORT &= ~ReloadLED_PIN;
   
-  // post the initial transition event
-  ThisEvent.EventType = ES_INIT;
-  if (ES_PostToService( MyPriority, ThisEvent) == true)
-  {
+   // post the initial transition event
+   ThisEvent.EventType = ES_INIT;
+   if (ES_PostToService( MyPriority, ThisEvent) == true)
       return true;
-  }else
-  {
+   else
       return false;
-  }
 }
 
 /****************************************************************************
@@ -128,12 +121,12 @@ bool InitIRemitter ( uint8_t Priority )
 ****************************************************************************/
 bool PostIRemitter( ES_Event ThisEvent )
 {
-  return ES_PostToService( MyPriority, ThisEvent);
+   return ES_PostToService(MyPriority, ThisEvent);
 }
 
 /****************************************************************************
  Function
-    RunTestHarnessService10
+    RunIRemitter
 
  Parameters
    ES_Event : the event to process
@@ -142,7 +135,11 @@ bool PostIRemitter( ES_Event ThisEvent )
    ES_Event, ES_NO_EVENT if no error ES_ERROR otherwise
 
  Description
-   add your description here
+   When the service receives a Reload Balls event, a timer is started and
+   interrurts are enabled to handle the pulses required to request a new
+   ball. Once the timer is finished, the robot will request more balls until
+   a total of 5 have been requested
+ 
  Notes
    
  Author
@@ -150,49 +147,58 @@ bool PostIRemitter( ES_Event ThisEvent )
 ****************************************************************************/
 ES_Event RunIRemitter( ES_Event ThisEvent )
 {
-  ES_Event ReturnEvent, NewEvent;
-  ReturnEvent.EventType = ES_NO_EVENT; // assume no errors
-  
-  if (ThisEvent.EventType == RELOAD_BALLS)
-  {
-    count = 0;
-    ES_Timer_InitTimer(IRemitterTimer, 3000);  
-    IRemitter_PORT |= IRemitter_PIN;
-    InitTimer();
-    ReloadLED_PORT |= ReloadLED_PIN; //Turn the Reload LED on
-    
-  }
-  
-  if (ThisEvent.EventType == ES_TIMEOUT)
-  { 
-    printf("i = %d, Balls = %d \r\n",count,ballCount);
-    if (ballCount < 5)
-    { 
+   ES_Event ReturnEvent, NewEvent;
+   ReturnEvent.EventType = ES_NO_EVENT; // assume no errors
+   
+   //Reload Balls Event Recieved. Start Timer and interrupts to create pulese 
+   if (ThisEvent.EventType == RELOAD_BALLS)
+   {
       count = 0;
-      ES_Timer_InitTimer(IRemitterTimer, 3000);
+      ES_Timer_InitTimer(IRemitterTimer, 3000);  
       IRemitter_PORT |= IRemitter_PIN;
-      ReloadLED_PORT |= ReloadLED_PIN; //Turn the Reload LED ON
-      InitTimer();
-    } 
-    else 
-    { 
-      ballCount = 0;
-      ReloadLED_PORT &= ~ReloadLED_PIN; //Turn the Reload LED OFF
-      TIM0_TIE &= ~(_S12_C6I|_S12_C7I); //disable oc4,5 interrupt
-      NewEvent.EventType = StartShootingMotors;
-      PostShoot(NewEvent); 
+      ReloadLED_PORT |= ReloadLED_PIN; //Turn the Reload LED on
+      InitTimer(); 
    }
-  }
+ 
+   /* Timeout event. If 5 balls have been requested, disable interrupts
+      to stop pulses
+   */ 
+   if (ThisEvent.EventType == ES_TIMEOUT)
+   { 
+      if (ballCount < 5)
+      { 
+         count = 0;
+         ES_Timer_InitTimer(IRemitterTimer, 3000);
+         IRemitter_PORT |= IRemitter_PIN;
+         ReloadLED_PORT |= ReloadLED_PIN; //Turn the Reload LED ON
+         InitTimer();
+      } 
+      else 
+      { 
+         ballCount = 0;
+         ReloadLED_PORT &= ~ReloadLED_PIN; //Turn the Reload LED OFF
+         TIM0_TIE &= ~(_S12_C6I|_S12_C7I); //disable oc4,5 interrupt
+         NewEvent.EventType = StartShootingMotors;
+         PostShoot(NewEvent); 
+      }
+   }
   
-  return ReturnEvent;
+   return ReturnEvent;
 }
 
 /***************************************************************************
  private functions
- ***************************************************************************/
+****************************************************************************/
+
+/***************************************************************************
+ Function
+   InitTimer
+
+ Description
+   Enable output compare interrupts hardware on microcontroller.
+****************************************************************************/
 static void InitTimer(void)
 {
-   
    TIM0_TSCR1 =_S12_TEN; //Enable
    TIM0_TSCR2 =(_S12_PR2);//|_S12_PR1|_S12_PR0); //Set Prescale to /16
  
@@ -205,17 +211,23 @@ static void InitTimer(void)
    TIM0_TFLG1 = _S12_C7F; //clear OC5 flag;
    TIM0_TIE |= (_S12_C6I|_S12_C7I); //enable oc4,5 interrupt   
    EnableInterrupts; //Enable Interrupts
-   
-   printf("InitTimer\n");
-}
+}   
 
+/***************************************************************************
+ Interrupt Responses
+   Timer40ms, Timer10ms
+ 
+ Description
+   Start with IR LED on and start 40 ms and 10 ms. When 10ms ends, turn off
+   IR LED. When the 40ms timer ends, turn the IR LED back on. Every pulse is
+   counted until 10 pulses have been emitted. 
+****************************************************************************/
 void interrupt _Vec_tim0ch6 Timer40ms (void)
 {
    IRemitter_PORT |= IRemitter_PIN; // Set Signal HI
    TIM0_TC6 = TIM0_TCNT + Period40ms; // program next compare
    TIM0_TFLG1 = _S12_C6F; //clear OC4 flag;
    ReloadLED_PORT |= ReloadLED_PIN; //Turn the Reload LED ON  
-   
 } /* End Interrupt Timer40ms */
 
 
@@ -227,13 +239,11 @@ void interrupt _Vec_tim0ch7 Timer10ms (void)
    
    count += 1;
    ReloadLED_PORT &= ~ReloadLED_PIN; //Turn the Reload LED OFF  
-   if (count >= 10){
+   if (count >= 10)
+   {
       TIM0_TIE &= ~(_S12_C6I|_S12_C7I); //disable oc4,5 interrupt   
       ballCount += 1;  
    }
-   
 } /* End Interrupt Timer10ms */
 
-/*------------------------------- Footnotes -------------------------------*/
 /*------------------------------ End of file ------------------------------*/
-

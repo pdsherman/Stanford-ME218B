@@ -1,6 +1,6 @@
 /****************************************************************************
  
-  Header file for template Flat Sate Machine 
+  Header file for Joust Status Reporter (JSR) service
   based on the Gen2 Events and Services Framework
 
  ****************************************************************************/
@@ -24,10 +24,6 @@
 
 #define RED_RELOAD_STATUS BIT4HI
 #define DARK_RELOAD_STATUS BIT6HI
-
-//#define HEAD_STATUS  BIT7HI
-//#define RELOAD_STATUS BIT6HI
-
 
 // Event Definitions
 #include "ES_Configure.h"

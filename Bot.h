@@ -1,6 +1,6 @@
 /****************************************************************************
  
-  Header file for template Flat Sate Machine 
+  Header file for Jousting Robot Flat Sate Machine 
   based on the Gen2 Events and Services Framework
 
  ****************************************************************************/
