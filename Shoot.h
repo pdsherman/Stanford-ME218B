@@ -1,6 +1,6 @@
 /****************************************************************************
  
-  Header file for template service 
+  Header file for serive for shooting foam balls
   based on the Gen 2 Events and Services Framework
 
  ****************************************************************************/

@@ -1,7 +1,7 @@
 /****************************************************************************
  
-  Header file for Test Harness Service0 
-  based on the Gen 2 Events and Services Framework
+  Header file for service to determine what color
+  on the gameboard the robot is standing above.
 
  ****************************************************************************/
 
@@ -16,7 +16,7 @@ bool InitOrientation ( uint8_t Priority );
 bool PostOrientation( ES_Event ThisEvent );
 ES_Event RunOrientation( ES_Event ThisEvent );
 
-// Event Checkers
+// Event Checker
 bool Check4RightTape(void);
 
 #endif /* ServTemplate_H */

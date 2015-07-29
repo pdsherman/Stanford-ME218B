@@ -1,27 +1,26 @@
 /****************************************************************************
  Module
-   JSRcommand.c
+   Orientation.c
 
  Revision
    1.0.1
 
  Description
-   This is the first service for the Test Harness under the 
-   Gen2 Events and Services Framework.
-
- Notes
+  The game board for the project is mostly white but includes a line of
+  red tape at the mid line and green tape on either side to designate the 
+  home sections. A simple tape sensor is used to examine the color on the ground
+  as the robot moves. 
 
  History
  When           Who     What/Why
  -------------- ---     --------
+ 03/10/15 12:10 pds05    Changed file for use in project
  10/21/13 19:38 jec      created to test 16 possible serves, we need a bunch
                          of service test harnesses
  08/05/13 20:33 jec      converted to test harness service
  01/16/12 09:58 jec      began conversion from TemplateFSM.c
 ****************************************************************************/
 /*----------------------------- Include Files -----------------------------*/
-/* include header files for the framework and this service
-*/
 #include "ES_Configure.h"
 #include "ES_Framework.h"
 #include "JSRcommand.h"
@@ -49,7 +48,6 @@
 //Tape Sensors
 #define RIGHT_TAPESENSOR_PIN 6 
 
-
 //Tape Colors
 #define WHITE 0
 #define RED 1
@@ -60,20 +58,16 @@
 
 
 /*---------------------------- Module Functions ---------------------------*/
-/* prototypes for private functions for this service.They should be functions
-   relevant to the behavior of this service
-*/
 
 /***************************************************************************
  private functions
  ***************************************************************************/
 //void AlignWithTape(void);
 /*---------------------------- Module Variables ---------------------------*/
-// with the introduction of Gen2, we need a module level Priority variable
 static uint8_t MyPriority;
 
 static unsigned int TargetColor;
-static unsigned int CurrentOState; //Align to horizontal or vertical tapes.
+static unsigned int CurrentOState;
 static unsigned int RELOAD_STATUS = DARK_RELOAD_STATUS;
 static bool DontChangeKnightFlag = false;
 static bool NotYetDetected = true;
@@ -99,28 +93,19 @@ static bool NotYetDetected = true;
 ****************************************************************************/
 bool InitOrientation ( uint8_t Priority )
 {
-  ES_Event ThisEvent;
+   ES_Event ThisEvent;
 
-  MyPriority = Priority;
-  /********************************************
-   in here you write your initialization code
-   *******************************************/
-  // post the initial transition event
-  
-  ADS12_Init("AAAAAAAA"); //Already initialized in IR_Detect.c file
+   MyPriority = Priority;
+   ADS12_Init("AAAAAAAA"); //Analog Inputs
  
-  CurrentOState = Align2Horizontal;
-  TargetColor = WHITE;
+   CurrentOState = Align2Horizontal;
+   TargetColor = WHITE;
   
-  
-  ThisEvent.EventType = ES_INIT;
-  if (ES_PostToService( MyPriority, ThisEvent) == true)
-  {
+   ThisEvent.EventType = ES_INIT;
+   if (ES_PostToService( MyPriority, ThisEvent) == true)
       return true;
-  }else
-  {
+   else
       return false;
-  }
 }
 
 /****************************************************************************
@@ -142,7 +127,7 @@ bool InitOrientation ( uint8_t Priority )
 ****************************************************************************/
 bool PostOrientation( ES_Event ThisEvent )
 {
-  return ES_PostToService( MyPriority, ThisEvent);
+   return ES_PostToService( MyPriority, ThisEvent);
 }
 
 /****************************************************************************
@@ -156,111 +141,86 @@ bool PostOrientation( ES_Event ThisEvent )
    ES_Event, ES_NO_EVENT if no error ES_ERROR otherwise
 
  Description
-   add your description here
- Notes
-   
- Author
+   Robot looks for the first line of green tape, then the red mid-line and then 
+   the green again. Once the 2nd green tape is spotted, the robot moves for
+   another 1/2 second before stopping
+ 
+ Author 
+   Patrick Sherman,   03/02/14, 16:30
    J. Edward Carryer, 01/15/12, 15:23
 ****************************************************************************/
 ES_Event RunOrientation( ES_Event ThisEvent )
 {
-  ES_Event ReturnEvent;
-  ES_Event NewEvent;
-  ReturnEvent.EventType = ES_NO_EVENT; // assume no errors
-  
-  if (RED_DARK_PORT&RED_DARK_PIN == RED_DARK_PIN) //Hi
-  {
-    RELOAD_STATUS = RED_RELOAD_STATUS;  //RED KNIGHT
-    DontChangeKnightFlag = true;
-  }
-  else if (DontChangeKnightFlag == false)
-  {
-    RELOAD_STATUS = DARK_RELOAD_STATUS; //DARK KNIGHT
-  }	
-  
-      
-  switch (ThisEvent.EventType)
-  {
-  	case(UpdateTargetColor):
-  	   printf("Change Target Color: %d\n\r", ThisEvent.EventParam);
-  		TargetColor = ThisEvent.EventParam;
-  		NotYetDetected = true;
-  		break;
+   ES_Event ReturnEvent;
+   ES_Event NewEvent;
+   ReturnEvent.EventType = ES_NO_EVENT; // assume no errors
+       
+   switch (ThisEvent.EventType)
+   {
+      case(UpdateTargetColor):
+         TargetColor = ThisEvent.EventParam;
+         NotYetDetected = true;
+         break;
   		
-  	case(Right_Tape):
-  	   //Seeing Red Tape
-  		if(ThisEvent.EventParam == TargetColor && TargetColor == RED)
-  		{
-  		 printf("STOP\n\r");
-  		 NotYetDetected = false;
-  		 if(GetCurrentRound() == 1 || GetCurrentRound() == 3)
-  		   {
-  			   timedTranslate(65, (ONE_SEC*3)/8);
-  			   puts("Move forward for 0.75 sec\n\r");
-  		   }
-  		   else 
-  		   {
-  			   timedTranslate(-65, (ONE_SEC*3)/4);
-  			   puts("Move backward for 0.5 sec\n\r");
-  		   }
-
-  		}
-  		//Seeing Green Tape
-  		if(ThisEvent.EventParam == TargetColor && TargetColor == GREEN)
-  		{
-  		   ES_Timer_InitTimer(Tape_Timer, 6*ONE_SEC/4);
-  			printf("Change Target Color to Red\n\r");
-  		}
-  		break;
+      case(Right_Tape):
+         //Seeing Red Tape
+         if(ThisEvent.EventParam == TargetColor && TargetColor == RED)
+         {
+            NotYetDetected = false;
+            if(GetCurrentRound() == 1 || GetCurrentRound() == 3)
+            {
+               timedTranslate(65, (ONE_SEC*3)/8);
+            }
+            else 
+            {
+               timedTranslate(-65, (ONE_SEC*3)/4);
+            }
+         }
+  		   //Seeing Green Tape
+         if(ThisEvent.EventParam == TargetColor && TargetColor == GREEN)
+         {
+            ES_Timer_InitTimer(Tape_Timer, 6*ONE_SEC/4);
+         }
+         break;
   		
-  	case(ES_TIMEOUT):
-  	   if((ThisEvent.EventParam == Pause_Timer)&& (NotYetDetected == true))
-  	   {
-  	      ES_Timer_StopTimer(StopMoving_Timer);
-  	      printf("### Pause_Timer TIMEOUT, Tape Detected!! ###\n\r");  
-  		   if(GetCurrentRound() == 1 || GetCurrentRound() == 3)
-  		   {
-  		      //Forward into Home
-  			   timedTranslate(65, 1*(ONE_SEC)/4);
-  			   puts("Move forward for 0.5 sec\n\r");
-  		   }
-  		   else 
-  		   {
-  		      //Backing into Home
-  			   timedTranslate(-65, (ONE_SEC)/2);
-  			   puts("Move backward for 0.5 sec\n\r");
-  		   }
-  		
-  	   }
-  	   
-      else if (ThisEvent.EventParam == Tape_Timer)
-      {
-         TargetColor = RED;
-      }
-      
-      else if((ThisEvent.EventParam == StopMoving_Timer)&& (NotYetDetected == true))
-  	   {
-			 
-  	      NotYetDetected = false;
-  	      printf("### StopMoving_Timer TIMEOUT, Tape NOT detected ###%%%\n\r");  
-  		   if(GetCurrentRound() == 1 || GetCurrentRound() == 3)
-  		   {
-  		      //Forward into Home
-  			   timedTranslate(65, (ONE_SEC*1)/4);
-  			   puts("Move forward for 0.5 sec\n\r");
-  		   }
-  		   else 
-  		   {
-  		      //Backing into Home
-  			   timedTranslate(-65, (ONE_SEC)/4);
-  			   puts("Move backward for 0.5 sec\n\r");
-  		   }
-  	   }
-  		break;
-   				  
-  } //End Swich  
+      case(ES_TIMEOUT):
+         if((ThisEvent.EventParam == Pause_Timer) && (NotYetDetected == true))
+         {
+            ES_Timer_StopTimer(StopMoving_Timer);
+            if(GetCurrentRound() == 1 || GetCurrentRound() == 3)
+            {
+               //Forward into Home
+               timedTranslate(65, 1*(ONE_SEC)/4);
+            }
+            else 
+            {
+               //Backing into Home
+               timedTranslate(-65, (ONE_SEC)/2);
+            }
+         }
+         else if (ThisEvent.EventParam == Tape_Timer)
+         {
+            TargetColor = RED;
+         }
+         else if((ThisEvent.EventParam == StopMoving_Timer) &&
+                   (NotYetDetected == true))
+         {
+            NotYetDetected = false;
+            if(GetCurrentRound() == 1 || GetCurrentRound() == 3)
+            {
+               //Forward into Home
+               timedTranslate(65, (ONE_SEC*1)/4);
+            }
+            else 
+            {
+               //Backing into Home
+               timedTranslate(-65, (ONE_SEC)/4);
+            }
+         }
+         break;
+   } //End Swich  
   
-    return ReturnEvent;
+   return ReturnEvent;
 }
 
 /***************************************************************************
@@ -283,11 +243,11 @@ bool Check4RightTape(void) {
     
     bool ChangeSeen = false;                                  
     
-    CurrentPinState = 9*ADS12_ReadADPin(COLOR_TAPESENSOR_PIN)/10 + LastPinState/10;
+    CurrentPinState = 9*ADS12_ReadADPin(COLOR_TAPESENSOR_PIN)/10 
+                        + LastPinState/10;
     
     LastPinState = CurrentPinState;
 
-    //printf("\t\tRight CurrentPinState = %u \n\r", CurrentPinState);
     
     if(RightTapeFlag != WHITE)
     {
@@ -324,8 +284,6 @@ bool Check4RightTape(void) {
         
     if (ChangeSeen == true)
     {
-      printf("Color: %d\n\r", RightTapeFlag);
-      printf("\tNumTimesSeen = %u \n\r", numTimesSeen);
     	numTimesSeen = 0;
     }
     else
@@ -338,8 +296,6 @@ bool Check4RightTape(void) {
        NewEvent.EventType = Right_Tape;
        NewEvent.EventParam = RightTapeFlag;
        PostOrientation(NewEvent);
-       printf("Posting Right Tape Event \n\r");
-       printf("Color: %d\n\r", RightTapeFlag);
        return true;
     }
     if (numTimesSeen > 1000)
