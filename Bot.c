@@ -11,13 +11,13 @@
    a sudden death if necessary) and short recess between each round.
 
  History
- When           Who     What/Why
- -------------- ---     --------
- 03/28/14 15:15 pds05    Revised template for use with project
- 01/15/12 11:12 jec      revisions for Gen2 framework
- 11/07/11 11:26 jec      made the queue static
- 10/30/11 17:59 jec      fixed references to CurrentEvent in RunTemplateSM()
- 10/23/11 18:20 jec      began conversion from SMTemplate.c (02/20/07 rev)
+ When           Who           What/Why
+ -------------- ---           --------
+ 03/28/14 15:15 PS,CB,AH,LK   Revised template for use with project
+ 01/15/12 11:12 jec           revisions for Gen2 framework
+ 11/07/11 11:26 jec           made the queue static
+ 10/30/11 17:59 jec           fixed references to CurrentEvent in RunTemplateSM
+ 10/23/11 18:20 jec           began conversion from SMTemplate.c (02/20/07 rev)
 ****************************************************************************/
 /*----------------------------- Include Files -----------------------------*/
 #include "ES_Configure.h"

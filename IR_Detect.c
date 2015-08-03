@@ -17,7 +17,7 @@
  History
  When           Who     What/Why
  -------------- ---     --------
- 02/17/14 10:30 pds      Converted template for use with IR Dectection
+ 02/17/14 10:30 PS       Converted template for use with IR Dectection
  01/15/12 11:12 jec      revisions for Gen2 framework
  11/07/11 11:26 jec      made the queue static
  10/30/11 17:59 jec      fixed references to CurrentEvent in RunTemplateSM()
@@ -159,6 +159,7 @@ bool PostIR_Detect( ES_Event ThisEvent )
    uses nested switch/case to implement the machine.
 
  Author
+   Patrick Sherman,   02/17/14, 09:45 
    J. Edward Carryer, 01/15/12, 15:23
 ****************************************************************************/
 ES_Event RunIR_Detect( ES_Event ThisEvent )

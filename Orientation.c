@@ -14,7 +14,7 @@
  History
  When           Who     What/Why
  -------------- ---     --------
- 03/10/15 12:10 pds05    Changed file for use in project
+ 03/10/15 12:10 PS, AH   Changed file for use in project
  10/21/13 19:38 jec      created to test 16 possible serves, we need a bunch
                          of service test harnesses
  08/05/13 20:33 jec      converted to test harness service
@@ -146,8 +146,8 @@ bool PostOrientation( ES_Event ThisEvent )
    another 1/2 second before stopping
  
  Author 
-   Patrick Sherman,   03/02/14, 16:30
-   J. Edward Carryer, 01/15/12, 15:23
+   P. Sherman, A. Han, 03/02/14, 16:30
+   J. Edward Carryer,  01/15/12, 15:23
 ****************************************************************************/
 ES_Event RunOrientation( ES_Event ThisEvent )
 {
@@ -232,7 +232,9 @@ ES_Event RunOrientation( ES_Event ThisEvent )
 /* 
 Function: Check4RightTape
 -----------------------------
-Event Checker for tape center on side of bot
+Event Checker for tape center on side of bot. Tape sensor with analog
+input is used. Values were experimentally matched with different colors
+on the game board. Colors included: Black, White, Red, Green
 */
 bool Check4RightTape(void) {
 	ES_Event NewEvent;
@@ -242,13 +244,14 @@ bool Check4RightTape(void) {
    static int numTimesSeen = 0;
     
     bool ChangeSeen = false;                                  
-    
+   
+    //Use simple filtering to smooth out any major spikes 
     CurrentPinState = 9*ADS12_ReadADPin(COLOR_TAPESENSOR_PIN)/10 
                         + LastPinState/10;
     
     LastPinState = CurrentPinState;
 
-    
+    //Match sensor value with color 
     if(RightTapeFlag != WHITE)
     {
       if(CurrentPinState < 220) //See White Tape
@@ -290,17 +293,20 @@ bool Check4RightTape(void) {
     {
        numTimesSeen++;	
     }
-    
-    if(numTimesSeen == 400)
+   
+    //Make sure color was seen 10 times in a row in case of false signals 
+    if(numTimesSeen == 10)
     {
        NewEvent.EventType = Right_Tape;
        NewEvent.EventParam = RightTapeFlag;
        PostOrientation(NewEvent);
        return true;
     }
-    if (numTimesSeen > 1000)
+
+    //Make sure int doesn't roll over to zero and restart counter
+    if (numTimesSeen > 10)
     {
-    	 numTimesSeen = 1001;
+    	 numTimesSeen = 11;
     }
     
     return false;

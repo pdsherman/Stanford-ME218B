@@ -8,17 +8,17 @@
  Description
    This is a template file for implementing a simple service under the 
    Gen2 Events and Services Framework. Service handles the generation of
-   PWM Signal for a DC Motor as required by Lab 7. 
+   PWM Signal for a DC Motor as required by project. 
 
  Notes
 
  History
- When           Who     What/Why
- -------------- ---     --------
- 03/15/14 12:10 pds05    Updated file for use with project
- 01/25/14 16:09 pds05    Changed file for use with DC Motor for lab 7
- 01/10/14 17:26 pds05    Converted template for use in Lab 5
- 01/16/12 09:58 jec      began conversion from TemplateFSM.c
+ When           Who        What/Why
+ -------------- ---        --------
+ 03/15/14 12:10 PS, LK     Updated file for use with project
+ 01/25/14 16:09 pds05      Changed file for use with DC Motor for lab 7
+ 01/10/14 17:26 pds05      Converted template for use in Lab 5
+ 01/16/12 09:58 jec        began conversion from TemplateFSM.c
 
 ****************************************************************************/
 /*----------------------------- Include Files -----------------------------*/
@@ -50,13 +50,8 @@
 
 #define _ms_ *750
 #define Period (60 _ms_)
-#define PGain1 0.2
-#define IGain1 0.008
-#define PGain2 0.2                      
-#define IGain2 0.008
-#define RPM_Period 200
-
 #define SCALE 8
+
 /*---------------------------- Module Functions ---------------------------*/
 void InitializeTimer(void);    
 void angleMotor(unsigned int Deg, unsigned int RPM5);
@@ -64,7 +59,6 @@ void rotateMotor(signed int RPMdir1);
 void translateMotor(signed int RPMdir);
 void positionMotor(unsigned int distInInches, unsigned int RPM);
 /*---------------------------- Module Variables ---------------------------*/
-// with the introduction of Gen2, we need a module level Priority variable
 static uint8_t MyPriority;
 static ES_Event DeferralQueue[3+1];
 static unsigned char i=0;
@@ -123,7 +117,8 @@ bool InitDCMotor ( uint8_t Priority )
   
    
    /* Turn on Port U for PWM outputs */
-   MOTOR_PORT_ADDRESS |= (MOTOR_1_DIR | MOTOR_2_DIR | MOTOR_1_PWM | MOTOR_2_PWM);
+   MOTOR_PORT_ADDRESS |= (MOTOR_1_DIR | MOTOR_2_DIR | 
+                           MOTOR_1_PWM | MOTOR_2_PWM);
   
    /* Initialize Registers for PWM Capability */
    PWME |= _S12_PWME0 | _S12_PWME1;    //Enable PWM 0,1
@@ -189,7 +184,7 @@ bool PostDCMotor( ES_Event ThisEvent )
    on if motor should turn clockwise or counter-clockwise
    
  Author
-   P. Sherman,        01/11/14, 14:04 - Converted for use with DC Motor
+   P. Sherman,L. Kim, 01/11/14, 14:04 - Converted for use with DC Motor
    J. Edward Carryer, 01/15/12, 15:23
 ****************************************************************************/
 ES_Event RunDCMotor( ES_Event ThisEvent )

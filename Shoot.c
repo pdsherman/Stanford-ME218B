@@ -15,7 +15,7 @@
  History
  When           Who     What/Why
  -------------- ---     --------
- 03/01/14 14:40 pds05    converted file for use in project
+ 03/01/14 14:40 PS, CB   converted file for use in project
  01/16/12 09:58 jec      began conversion from TemplateFSM.c
 ****************************************************************************/
 /*----------------------------- Include Files -----------------------------*/
@@ -120,8 +120,8 @@ bool PostShoot( ES_Event ThisEvent )
    it reaches 0 and the servo and wheels stop actuating.   
  
  Author
-   Patrick Sherman,   03/03/14, 10:30
-   J. Edward Carryer, 01/15/12, 15:23
+   P. Sherman, C. Bai  03/03/14, 10:30
+   J. Edward Carryer,  01/15/12, 15:23
 ****************************************************************************/
 ES_Event RunShoot( ES_Event ThisEvent )
 {

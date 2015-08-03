@@ -17,7 +17,7 @@
  History
  When           Who     What/Why
  -------------- ---     --------
- 02/20/15 13:30 pds05    edited file for use in project
+ 02/20/15 13:30 LK, AH   edited file for use in project
  10/21/13 19:38 jec      created to test 16 possible serves, we need a bunch
                          of service test harnesses
  08/05/13 20:33 jec      converted to test harness service
@@ -143,6 +143,7 @@ bool PostIRemitter( ES_Event ThisEvent )
  Notes
    
  Author
+   A. Han, L. Kim,    02/20/14, 16:20
    J. Edward Carryer, 01/15/12, 15:23
 ****************************************************************************/
 ES_Event RunIRemitter( ES_Event ThisEvent )

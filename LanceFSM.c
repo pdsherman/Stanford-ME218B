@@ -16,7 +16,7 @@
  History
  When           Who     What/Why
  -------------- ---     --------
- 03/10/14 20:30 pds05    Edited file for use with Lance state machine
+ 03/10/14 20:30 PS       Edited file for use with Lance state machine
  01/15/12 11:12 jec      revisions for Gen2 framework
  11/07/11 11:26 jec      made the queue static
  10/30/11 17:59 jec      fixed references to CurrentEvent in RunTemplateSM()
@@ -116,21 +116,26 @@ bool PostLance( ES_Event ThisEvent )
    the lance and a timer is used to wait the 3 seconds to retract lance
    and 1 second wait until the lance is able to be extended again.
 
- Author
+ Author 
+   P. Sherman,        03/10/14, 20:40  
    J. Edward Carryer, 01/15/12, 15:23
 ****************************************************************************/
 ES_Event RunLance( ES_Event ThisEvent )
 {
    ES_Event ReturnEvent;
    ReturnEvent.EventType = ES_NO_EVENT; // assume no errors
-
+ 
+   //Deploy Lance if event is posted and lance is in valid state 
    if(ThisEvent.EventType == Deploy_Lance && CurrentState == Retracted)
    {
       SetServo(LANCE_SERVO, DEPLOY_WIDTH);
 	   ES_Timer_InitTimer(Lance_Timer, 3*ONE_SEC);
 	   CurrentState = Deployed;
     
-   } else if(ThisEvent.EventType == ES_TIMEOUT)
+   } 
+
+   //Timeout Event recieved
+   else if(ThisEvent.EventType == ES_TIMEOUT)
    {
       if(CurrentState == Deployed)
       {
